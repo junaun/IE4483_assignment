@@ -21,7 +21,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-device = 'cpu'
+device = 'cuda'
 def get_train_transform():
     return T.Compose([
         T.RandomHorizontalFlip(p=0.5),
@@ -78,12 +78,14 @@ valid_dataset = CatDogDataset(img_path = valid_image_path, label = valid_label, 
 
 train_data_loader = DataLoader(
     dataset = train_dataset,
+    num_workers= 4,
     batch_size = 16,
     shuffle = True
 )
 
 val_data_loader = DataLoader(
     dataset = valid_dataset,
+    num_workers= 4,
     batch_size = 16,
     shuffle = True
 )
@@ -199,7 +201,7 @@ def val_one_epoch(val_data_loader, best_val_acc):
         
     return epoch_loss, epoch_acc, total_time, best_val_acc
 
-model = resnet50(weights='ResNet50_Weights.DEFAULT')
+model = resnet50()
 
 # Modifying Head - classifier
 
@@ -225,28 +227,47 @@ val_logs = {"loss" : [], "accuracy" : [], "time" : []}
 model.to(device)
 
 # No of epochs 
-epochs = 10
+epochs = 15
 
 best_val_acc = 0
-for epoch in tqdm(range(epochs)):
-    
-    ###Training
-    loss, acc, _time = train_one_epoch(train_data_loader)
-    
-    #Print Epoch Details
-    print("\nTraining")
-    print("Epoch {}".format(epoch+1))
-    print("Loss : {}".format(round(loss, 4)))
-    print("Acc : {}".format(round(acc, 4)))
-    print("Time : {}".format(round(_time, 4)))
-    
-    ###Validation
-    loss, acc, _time, best_val_acc = val_one_epoch(val_data_loader, best_val_acc)
-    
-    #Print Epoch Details
-    print("\nValidating")
-    print("Epoch {}".format(epoch+1))
-    print("Loss : {}".format(round(loss, 4)))
-    print("Acc : {}".format(round(acc, 4)))
-    print("Time : {}".format(round(_time, 4)))
-    
+if __name__ == '__main__':
+    train_acc = []
+    train_loss = []
+    valid_acc = []
+    valid_loss = []
+    for epoch in tqdm(range(epochs)):
+        
+        ###Training
+        loss, acc, _time = train_one_epoch(train_data_loader)
+        train_acc.append(acc) 
+        train_loss.append(loss)
+        #Print Epoch Details
+        print("\nTraining")
+        print("Epoch {}".format(epoch+1))
+        print("Loss : {}".format(round(loss, 4)))
+        print("Acc : {}".format(round(acc, 4)))
+        print("Time : {}".format(round(_time, 4)))
+        
+        ###Validation
+        loss, acc, _time, best_val_acc = val_one_epoch(val_data_loader, best_val_acc)
+        valid_acc.append(acc) 
+        valid_loss.append(loss)
+        #Print Epoch Details
+        print("\nValidating")
+        print("Epoch {}".format(epoch+1))
+        print("Loss : {}".format(round(loss, 4)))
+        print("Acc : {}".format(round(acc, 4)))
+        print("Time : {}".format(round(_time, 4)))
+        
+    plt.plot(train_acc, label = 'train_acc')
+    plt.plot(valid_acc, label = 'valid_acc')
+    plt.legend()
+    plt.title('Accuracy')
+    plt.savefig('acc_noweight.png')
+    plt.clf()
+    plt.plot(train_loss, label = 'train_loss')
+    plt.plot(valid_loss, label = 'valid_loss')
+    plt.legend()
+    plt.title('Loss')
+    plt.savefig('loss_noweight.png')
+    plt.close()
