@@ -1,8 +1,7 @@
 import os
-import cv2
 import time
-import random
 import numpy as np
+import pandas as pd
 
 import torch
 import torch.nn as nn
@@ -21,12 +20,13 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
+name = 'resnet101_notpretrained_catdog'
+model = resnet101(weights=None)
+# model = resnet101(weights='ResNet101_Weights.DEFAULT')
 device = 'cuda'
 def get_train_transform():
     return T.Compose([
         T.RandomHorizontalFlip(p=0.5),
-        T.RandomRotation(15),
-        T.RandomCrop(204),
         T.ToTensor(),
         T.Normalize((0, 0, 0),(1, 1, 1))
     ])
@@ -197,12 +197,10 @@ def val_one_epoch(val_data_loader, best_val_acc):
     ###Saving best model
     if epoch_acc > best_val_acc:
         best_val_acc = epoch_acc
-        torch.save(model.state_dict(),"resnet101.pth")
+        torch.save(model.state_dict(),f"{name}.pth")
         
     return epoch_loss, epoch_acc, total_time, best_val_acc
 
-model = resnet101(weights='ResNet101_Weights.DEFAULT')
-# model = resnet101(weights=None)
 
 # Modifying Head - classifier
 
@@ -259,16 +257,25 @@ if __name__ == '__main__':
         print("Loss : {}".format(round(loss, 4)))
         print("Acc : {}".format(round(acc, 4)))
         print("Time : {}".format(round(_time, 4)))
-        
+
     plt.plot(train_acc, label = 'train_acc')
     plt.plot(valid_acc, label = 'valid_acc')
     plt.legend()
-    plt.title('Resnet101_Accuracy')
-    plt.savefig('acc_resnet101_pretrained.png')
+    plt.title(f'Accuracy_{name}')
+    plt.savefig(f'result/acc_{name}.png')
     plt.clf()
     plt.plot(train_loss, label = 'train_loss')
     plt.plot(valid_loss, label = 'valid_loss')
     plt.legend()
-    plt.title('Resnet101_Loss')
-    plt.savefig('loss_resnet101_pretrained.png')
+    plt.title(f'Loss_{name}')
+    plt.savefig(f'result/loss_{name}.png')
     plt.close()
+
+    # create dictionary with column names as keys and lists as values
+    data = {'train_acc': train_acc, 'train_loss': train_loss, 'valid_acc': valid_acc, 'valid_loss': valid_loss}
+
+    # convert dictionary to pandas DataFrame
+    df = pd.DataFrame(data)
+
+    # save DataFrame to CSV file
+    df.to_csv(f'{name}.csv', index=False)

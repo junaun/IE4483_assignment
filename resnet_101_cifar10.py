@@ -30,8 +30,6 @@ device = 'cuda'
 def get_train_transform():
     return T.Compose([
         T.RandomHorizontalFlip(p=0.5),
-        T.RandomRotation(15),
-        T.RandomCrop(32),
         T.ToTensor(),
         T.Normalize((0, 0, 0),(1, 1, 1))
     ])
@@ -157,7 +155,6 @@ def val_one_epoch(val_data_loader, best_val_acc):
 # Modifying Head - classifier
 model.fc = nn.Sequential(
     nn.Linear(2048, 10, bias = True),
-    nn.Sigmoid()
 )
 
 # Optimizer
