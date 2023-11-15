@@ -6,3 +6,5 @@
 
 ## CIFAR-10
 1. Train using CIFAR-10 dataset : ``python resnet50_cifar10.py`` or ``python resnet101_cifar10.py``
+
+All the results (accuracy, loss) will be saved in result folder
