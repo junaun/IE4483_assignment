@@ -18,8 +18,9 @@ from tqdm import tqdm
 
 from torchvision.datasets import CIFAR10
 
-name = 'resnet50_notpretrained_cifar10'
-# model = resnet50(weights = 'ResNet50_Weights.DEFAULT')
+name = 'resnet50_pretrained_cifar10_liearprobing'
+model = resnet50(weights = 'ResNet50_Weights.DEFAULT')
+# model = resnet50(weights = None)
 
 def modify_resnet_cifar10(model):
     # Change the first convolutional layer to 3x3 kernel and stride 1
@@ -28,13 +29,16 @@ def modify_resnet_cifar10(model):
     # Remove the max pooling layer
     model.maxpool = nn.Identity()
 
+    #Linear probing
+    for param in model.parameters():
+        param.requires_grad = False
+
     # Change the number of output features in the final fully connected layer to 10
     model.fc = nn.Sequential(
         nn.Linear(2048, 10, bias=True),
     )
     return model
 
-model = resnet50(weights = None)
 model = modify_resnet_cifar10(model)
 device = 'cuda'
 def get_train_transform():

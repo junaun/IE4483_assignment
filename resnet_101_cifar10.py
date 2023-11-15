@@ -31,15 +31,19 @@ def modify_resnet_cifar10(model):
     # Remove the max pooling layer
     model.maxpool = nn.Identity()
 
+    #Linear probing
+    for param in model.parameters():
+        param.requires_grad = False
+
     # Change the number of output features in the final fully connected layer to 10
     model.fc = nn.Sequential(
         nn.Linear(2048, 10, bias=True),
     )
     return model
 
-name = 'resnet101_notpretrained_cifar10'
-# model = resnet101(weights = 'ResNet101_Weights.DEFAULT')
-model = resnet101(weights = None)
+name = 'resnet101_pretrained_cifar10_linearprobing'
+model = resnet101(weights = 'ResNet101_Weights.DEFAULT')
+# model = resnet101(weights = None)
 model = modify_resnet_cifar10(model)
 device = 'cuda'
 def get_train_transform():
