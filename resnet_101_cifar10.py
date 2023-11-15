@@ -3,6 +3,7 @@ import cv2
 import time
 import random
 import numpy as np
+import pandas as pd
 
 import torch
 import torch.nn as nn
@@ -23,9 +24,23 @@ from tqdm import tqdm
 
 from torchvision.datasets import CIFAR10
 
-name = 'resnet101_pretrained_cifar10'
-model = resnet101(weights = 'ResNet101_Weights.DEFAULT')
-# model = resnet101(weights = None)
+def modify_resnet_cifar10(model):
+    # Change the first convolutional layer to 3x3 kernel and stride 1
+    model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+
+    # Remove the max pooling layer
+    model.maxpool = nn.Identity()
+
+    # Change the number of output features in the final fully connected layer to 10
+    model.fc = nn.Sequential(
+        nn.Linear(2048, 10, bias=True),
+    )
+    return model
+
+name = 'resnet101_notpretrained_cifar10'
+# model = resnet101(weights = 'ResNet101_Weights.DEFAULT')
+model = resnet101(weights = None)
+model = modify_resnet_cifar10(model)
 device = 'cuda'
 def get_train_transform():
     return T.Compose([
@@ -99,11 +114,6 @@ def train_one_epoch(train_data_loader):
     epoch_loss = np.mean(epoch_loss)
     epoch_acc = np.mean(epoch_acc)
     
-    ###Storing results to logs
-    train_logs["loss"].append(epoch_loss)
-    train_logs["accuracy"].append(epoch_acc)
-    train_logs["time"].append(total_time)
-        
     return epoch_loss, epoch_acc, total_time
         
 def val_one_epoch(val_data_loader, best_val_acc):
@@ -140,22 +150,12 @@ def val_one_epoch(val_data_loader, best_val_acc):
     epoch_loss = np.mean(epoch_loss)
     epoch_acc = np.mean(epoch_acc)
     
-    ###Storing results to logs
-    val_logs["loss"].append(epoch_loss)
-    val_logs["accuracy"].append(epoch_acc)
-    val_logs["time"].append(total_time)
-    
     ###Saving best model
     if epoch_acc > best_val_acc:
         best_val_acc = epoch_acc
-        torch.save(model.state_dict(),f"weight/{name}.pth")
+        torch.save(model.state_dict(),f"weights/{name}.pth")
         
     return epoch_loss, epoch_acc, total_time, best_val_acc
-
-# Modifying Head - classifier
-model.fc = nn.Sequential(
-    nn.Linear(2048, 10, bias = True),
-)
 
 # Optimizer
 optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
@@ -165,10 +165,6 @@ lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size = 5, gamma =
 
 #Loss Function
 criterion = nn.CrossEntropyLoss()
-
-# Logs - Helpful for plotting after training finishes
-train_logs = {"loss" : [], "accuracy" : [], "time" : []}
-val_logs = {"loss" : [], "accuracy" : [], "time" : []}
 
 # Loading model to device
 model.to(device)
@@ -210,11 +206,15 @@ if __name__ == '__main__':
     plt.plot(valid_acc, label = 'valid_acc')
     plt.legend()
     plt.title(f'Accuracy_{name}')
-    plt.savefig(f'result/acc_{name}.png')
+    plt.savefig(f'result/cifar10/acc/acc_{name}.png')
     plt.clf()
     plt.plot(train_loss, label = 'train_loss')
     plt.plot(valid_loss, label = 'valid_loss')
     plt.legend()
     plt.title(f'Loss_{name}')
-    plt.savefig(f'result/loss_{name}.png')
+    plt.savefig(f'result/cifar10/loss/loss_{name}.png')
     plt.close()
+
+    data = {'train_acc': train_acc, 'train_loss': train_loss, 'valid_acc': valid_acc, 'valid_loss': valid_loss}
+    df = pd.DataFrame(data)
+    df.to_csv(f'result/cifar10/{name}.csv', index=False)

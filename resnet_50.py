@@ -20,9 +20,9 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-name = 'resnet50_notpretrained_catdog'
-model = resnet50(weights = None)
-# model = resnet50(weights = 'ResNet50_Weights.DEFAULT')
+name = 'resnet50_pretrained_catdog_linearprobing'
+# model = resnet50(weights = None)
+model = resnet50(weights = 'ResNet50_Weights.DEFAULT')
 
 device = 'cuda'
 def get_train_transform():
@@ -91,13 +91,6 @@ val_data_loader = DataLoader(
     shuffle = True
 )
 
-# test_data_loader = DataLoader(
-#     dataset = test_dataset,
-#     num_workers = 4,
-#     batch_size = 16,
-#     shuffle = True
-# )
-
 def accuracy(preds, trues):
     ### Converting preds to 0 or 1
     preds = [1 if preds[i] >= 0.5 else 0 for i in range(len(preds))]
@@ -148,11 +141,6 @@ def train_one_epoch(train_data_loader):
     epoch_loss = np.mean(epoch_loss)
     epoch_acc = np.mean(epoch_acc)
     
-    ###Storing results to logs
-    train_logs["loss"].append(epoch_loss)
-    train_logs["accuracy"].append(epoch_acc)
-    train_logs["time"].append(total_time)
-        
     return epoch_loss, epoch_acc, total_time
         
 def val_one_epoch(val_data_loader, best_val_acc):
@@ -190,17 +178,16 @@ def val_one_epoch(val_data_loader, best_val_acc):
     epoch_loss = np.mean(epoch_loss)
     epoch_acc = np.mean(epoch_acc)
     
-    ###Storing results to logs
-    val_logs["loss"].append(epoch_loss)
-    val_logs["accuracy"].append(epoch_acc)
-    val_logs["time"].append(total_time)
-    
     ###Saving best model
     if epoch_acc > best_val_acc:
         best_val_acc = epoch_acc
-        torch.save(model.state_dict(),f"{name}_best.pth")
+        torch.save(model.state_dict(),f"weights/{name}.pth")
         
     return epoch_loss, epoch_acc, total_time, best_val_acc
+
+#Linear probing
+for param in model.parameters():
+    param.requires_grad = False
 
 # Modifying Head - classifier
 model.fc = nn.Sequential(
@@ -209,17 +196,13 @@ model.fc = nn.Sequential(
 )
 
 # Optimizer
-optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
+optimizer = torch.optim.Adam(model.fc.parameters(), lr = 0.0001)
 
 # Learning Rate Scheduler
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size = 5, gamma = 0.5)
 
 #Loss Function
 criterion = nn.BCELoss()
-
-# Logs - Helpful for plotting after training finishes
-train_logs = {"loss" : [], "accuracy" : [], "time" : []}
-val_logs = {"loss" : [], "accuracy" : [], "time" : []}
 
 # Loading model to device
 model.to(device)
@@ -261,21 +244,15 @@ if __name__ == '__main__':
     plt.plot(valid_acc, label = 'valid_acc')
     plt.legend()
     plt.title(f'Accuracy_{name}')
-    plt.savefig(f'result/acc_{name}.png')
+    plt.savefig(f'result/catdog/acc/acc_{name}.png')
     plt.clf()
     plt.plot(train_loss, label = 'train_loss')
     plt.plot(valid_loss, label = 'valid_loss')
     plt.legend()
     plt.title(f'Loss_{name}')
-    plt.savefig(f'result/loss_{name}.png')
+    plt.savefig(f'result/catdog/loss/loss_{name}.png')
     plt.close()
-    import pandas as pd
 
-    # create dictionary with column names as keys and lists as values
     data = {'train_acc': train_acc, 'train_loss': train_loss, 'valid_acc': valid_acc, 'valid_loss': valid_loss}
-
-    # convert dictionary to pandas DataFrame
     df = pd.DataFrame(data)
-
-    # save DataFrame to CSV file
-    df.to_csv(f'{name}.csv', index=False)
+    df.to_csv(f'result/catdog/{name}.csv', index=False)
